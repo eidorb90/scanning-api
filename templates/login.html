@@ -1,0 +1,27 @@
+
+{% extends "index.html" %}
+{% block content %}
+    <H2>LOGIN</H2>
+    <form 
+    hx-post="/auth/token/"
+    hx-swap="innerHTML"
+    hx-encoding="multipart/form-data"
+    hx-target="#errorText"
+    >
+  <div>
+    <label for="username">Username:</label>
+    <input type="text" id="username" name="username" required>
+  </div>
+
+  <div>
+    <label for="password">Password:</label>
+    <input type="password" id="password" name="password" required>
+  </div>
+
+  <button type="submit">Submit</button>
+</form>
+<div id="errorText">
+    <h1></h1>
+</div>
+    <a href="http://bigman.tailc9dd83.ts.net:8000/signup/">Signup</a>
+{% endblock %}

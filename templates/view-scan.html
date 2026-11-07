@@ -1,0 +1,158 @@
+{% extends "index.html" %}
+
+{% block content %}
+    <a href="/">Back</a>
+    <h2>{{ scan_name }}</h2>
+    <label>
+        Point size
+        <input type="range" id="pointSize" min="0.5" max="10" step="0.5" value="2">
+    </label>
+{% endblock %}
+
+{% block scripts %}
+
+<script type="importmap">
+{
+    "imports": {
+        "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
+    }
+}
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // 1. Scene, camera, renderer
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x222222);
+
+    const camera = new THREE.PerspectiveCamera(
+        60,
+        window.innerWidth / window.innerHeight,
+        0.01,
+        10000
+    );
+    camera.position.set(0, 0, 5);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // 2. Orbit controls (point clouds need no lighting)
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    // 3. Load the PLY point cloud exported by pycolmap
+    const loader = new PLYLoader();
+    const scanPath = {{ scan_path | tojson }};
+
+    // Group lets us flip COLMAP's coordinate system (y down, z forward)
+    // into Three.js's (y up) without touching the raw geometry.
+    const cloud = new THREE.Group();
+    cloud.rotation.x = Math.PI;
+    scene.add(cloud);
+
+    let points;
+
+    loader.load(
+        scanPath,
+
+        (geometry) => {
+            const pos = geometry.attributes.position;
+            const count = pos.count;
+
+            // COLMAP sparse clouds often contain far-away outliers, so a plain
+            // bounding box can be huge. Use the median as the center and the
+            // 90th-percentile distance as the radius instead.
+            const median = (arr) => {
+                const s = Float32Array.from(arr).sort();
+                return s[Math.floor(s.length / 2)];
+            };
+            const xs = new Float32Array(count);
+            const ys = new Float32Array(count);
+            const zs = new Float32Array(count);
+            for (let i = 0; i < count; i++) {
+                xs[i] = pos.getX(i);
+                ys[i] = pos.getY(i);
+                zs[i] = pos.getZ(i);
+            }
+            const center = new THREE.Vector3(median(xs), median(ys), median(zs));
+
+            const dists = new Float32Array(count);
+            const p = new THREE.Vector3();
+            for (let i = 0; i < count; i++) {
+                p.set(xs[i], ys[i], zs[i]);
+                dists[i] = p.distanceTo(center);
+            }
+            dists.sort();
+            const radius = dists[Math.floor(count * 0.9)] || 1;
+
+            geometry.translate(-center.x, -center.y, -center.z);
+
+            // pycolmap writes uchar red/green/blue; PLYLoader exposes them
+            // as a normalized 'color' attribute.
+            const hasColor = geometry.hasAttribute('color');
+
+            const material = new THREE.PointsMaterial({
+                size: 2,
+                sizeAttenuation: false,   // constant pixel size
+                vertexColors: hasColor,
+                color: hasColor ? 0xffffff : 0xcccccc
+            });
+
+            points = new THREE.Points(geometry, material);
+            cloud.add(points);
+
+            // Frame the camera around the cloud
+            const dist = radius / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+            camera.position.set(0, 0, dist * 1.2);
+            camera.near = radius / 1000;
+            camera.far = radius * 100;
+            camera.updateProjectionMatrix();
+            controls.target.set(0, 0, 0);
+            controls.update();
+
+            console.log('Points:', count);
+            console.log('Has colors:', hasColor);
+        },
+
+        (xhr) => {
+            if (xhr.total > 0) {
+                console.log(`Loading: ${(xhr.loaded / xhr.total * 100).toFixed(2)}%`);
+            }
+        },
+
+        (error) => {
+            console.error('Error loading PLY point cloud:', error);
+        }
+    );
+
+    // 4. Point size slider
+    const sizeInput = document.getElementById('pointSize');
+    if (sizeInput) {
+        sizeInput.addEventListener('input', () => {
+            if (points) points.material.size = parseFloat(sizeInput.value);
+        });
+    }
+
+    // 5. Render loop
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    // 6. Resize handling
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+</script>
+
+{% endblock %}

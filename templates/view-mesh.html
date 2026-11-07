@@ -1,0 +1,220 @@
+{% extends "index.html" %}
+
+{% block content %}
+    <a href="/" style="position: relative; z-index: 10;">Back</a>
+    <h2 style="position: relative; z-index: 10;">{{ scan_name }}</h2>
+
+    <div id="mesh-controls" style="
+        position: fixed; top: 12px; right: 12px; z-index: 10;
+        background: rgba(0, 0, 0, 0.6); color: #eee;
+        padding: 10px 14px; border-radius: 8px;
+        font: 13px/1.8 system-ui, sans-serif;">
+        <label><input type="checkbox" id="opt-wireframe"> Wireframe</label><br>
+        <label><input type="checkbox" id="opt-rotate"> Auto-rotate</label><br>
+        <label><input type="checkbox" id="opt-flip" checked> Flip Y/Z (COLMAP)</label><br>
+        <button id="opt-reset" style="margin-top: 4px;">Reset view</button>
+        <div id="mesh-stats" style="margin-top: 6px; opacity: 0.7;">Loading…</div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+
+<script type="importmap">
+{
+    "imports": {
+        "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
+    }
+}
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // 1. Scene, camera, renderer
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x222222);
+
+    const camera = new THREE.PerspectiveCamera(
+        60,
+        window.innerWidth / window.innerHeight,
+        0.01,
+        1000
+    );
+    camera.position.set(0, 0, 5);
+    scene.add(camera); // lets the headlight follow the camera
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.domElement.style.cssText = 'position: fixed; inset: 0; z-index: 0;';
+    document.body.appendChild(renderer.domElement);
+
+    // 2. Orbit controls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+
+    // 3. Lighting: soft ambient/hemisphere + a headlight attached to the camera
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.2));
+
+    const headlight = new THREE.DirectionalLight(0xffffff, 2);
+    headlight.position.set(0, 0, 1);
+    camera.add(headlight);
+
+    // 4. UI elements
+    const wireframeBox = document.getElementById('opt-wireframe');
+    const rotateBox = document.getElementById('opt-rotate');
+    const flipBox = document.getElementById('opt-flip');
+    const resetBtn = document.getElementById('opt-reset');
+    const statsEl = document.getElementById('mesh-stats');
+
+    // 5. State
+    const pivot = new THREE.Group(); // holds the flip rotation + auto-rotate
+    scene.add(pivot);
+
+    let object = null;     // Mesh or Points
+    let material = null;
+    let fitDistance = 5;
+
+    function applyFlip() {
+        // COLMAP uses +Y down / +Z forward; three.js uses +Y up.
+        pivot.rotation.x = flipBox.checked ? Math.PI : 0;
+    }
+
+    function resetView() {
+        camera.position.set(0, fitDistance * 0.3, fitDistance);
+        controls.target.set(0, 0, 0);
+        controls.update();
+    }
+
+    function fitCameraToGeometry(geometry) {
+        geometry.computeBoundingSphere();
+        const radius = geometry.boundingSphere.radius || 1;
+        const fov = THREE.MathUtils.degToRad(camera.fov);
+
+        fitDistance = (radius / Math.sin(fov / 2)) * 1.1;
+
+        camera.near = radius / 100;
+        camera.far = radius * 100;
+        camera.updateProjectionMatrix();
+
+        controls.minDistance = radius * 0.1;
+        controls.maxDistance = radius * 20;
+
+        resetView();
+    }
+
+    // 6. Load the PyCOLMAP Poisson mesh
+    const loader = new PLYLoader();
+    const scanPath = {{ scan_path | tojson }};
+
+    loader.load(
+        scanPath,
+
+        (geometry) => {
+            const hasFaces = !!geometry.index;
+            const hasColors = geometry.hasAttribute('color');
+
+            // Center the geometry at the origin
+            geometry.computeBoundingBox();
+            const center = new THREE.Vector3();
+            geometry.boundingBox.getCenter(center);
+            geometry.translate(-center.x, -center.y, -center.z);
+
+            if (hasFaces) {
+                if (!geometry.hasAttribute('normal')) {
+                    geometry.computeVertexNormals();
+                }
+
+                material = new THREE.MeshStandardMaterial({
+                    color: 0xffffff,
+                    vertexColors: hasColors,
+                    roughness: 0.8,
+                    metalness: 0.0,
+                    side: THREE.DoubleSide,
+                    flatShading: false
+                });
+
+                object = new THREE.Mesh(geometry, material);
+            } else {
+                // No faces: this is a point cloud, not a mesh. Render as points
+                // instead of misinterpreting the vertices as a triangle soup.
+                console.warn('PLY has no faces; rendering as points.');
+                geometry.computeBoundingSphere();
+
+                material = new THREE.PointsMaterial({
+                    color: 0xffffff,
+                    vertexColors: hasColors,
+                    size: geometry.boundingSphere.radius * 0.005,
+                    sizeAttenuation: true
+                });
+
+                object = new THREE.Points(geometry, material);
+                wireframeBox.disabled = true;
+            }
+
+            pivot.add(object);
+            applyFlip();
+            fitCameraToGeometry(geometry);
+
+            const vertCount = geometry.attributes.position.count;
+            const triCount = hasFaces ? geometry.index.count / 3 : 0;
+
+            statsEl.innerHTML = hasFaces
+                ? `${vertCount.toLocaleString()} vertices<br>${triCount.toLocaleString()} triangles<br>Colors: ${hasColors ? 'yes' : 'no'}`
+                : `${vertCount.toLocaleString()} points (no faces)<br>Colors: ${hasColors ? 'yes' : 'no'}`;
+
+            console.log('Vertices:', vertCount);
+            console.log('Triangles:', triCount);
+            console.log('Has colors:', hasColors);
+        },
+
+        (xhr) => {
+            if (xhr.total > 0) {
+                const pct = (xhr.loaded / xhr.total * 100).toFixed(0);
+                statsEl.textContent = `Loading… ${pct}%`;
+            }
+        },
+
+        (error) => {
+            console.error('Error loading PyCOLMAP mesh:', error);
+            statsEl.textContent = 'Failed to load mesh';
+        }
+    );
+
+    // 7. Control handlers
+    wireframeBox.addEventListener('change', () => {
+        if (material && 'wireframe' in material) {
+            material.wireframe = wireframeBox.checked;
+        }
+    });
+    flipBox.addEventListener('change', applyFlip);
+    resetBtn.addEventListener('click', resetView);
+
+    // 8. Animation loop
+    function animate() {
+        requestAnimationFrame(animate);
+
+        if (rotateBox.checked) {
+            pivot.rotation.y += 0.004;
+        }
+
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // 9. Handle window resizing
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+</script>
+
+{% endblock %}

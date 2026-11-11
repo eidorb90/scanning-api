@@ -13,6 +13,10 @@ class ScanJob(BaseModel):
     mesh: bool
     max_distance: int
     frame_interval: int
+    max_num_feats: int
+    peak_thresh: float
+    estimate_shape: bool
+    domain_pooling: bool
     depth: int
     pw: float
     trim: float

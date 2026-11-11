@@ -82,7 +82,7 @@ class Queue:
 
 
 class ScanQueue(Queue):
-    def __init__(self, average_time_per_frame=0.75) -> None:
+    def __init__(self, average_time_per_frame=1.5) -> None:
         self._average_time_per_frame = average_time_per_frame
         self._active = None
         super().__init__()

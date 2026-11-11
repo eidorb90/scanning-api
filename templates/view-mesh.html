@@ -3,6 +3,28 @@
 {% block content %}
     <a href="/" style="position: relative; z-index: 10;">Back</a>
     <h2 style="position: relative; z-index: 10;">{{ scan_name }}</h2>
+        <div style="position: relative; z-index: 10;">
+            <form hx-post="/scanning/remesh-scan/?scan_name={{ scan_name }} ">
+                <div class="form-group">
+                    <label for="Depth">Depth:</label>
+                    <input type="number" id="depth" name="depth" required value="9">
+                </div>
+                <div class="form-group">
+                    <label for="PW">PW:</label>
+                    <input type="number" id="pw" name="pw" required value="2.0"">
+                </div>
+                <div class="form-group">
+                    <label for="Trim">Trim:</label>
+                    <input type="number" id="trim" name="trim" required value="5">
+                </div>
+                <div class="hidden-form-group">
+                    <input type="hidden" name="scan_name" id="{{ scan_name }}" value="{{ scan_name }}">
+                </div>
+                <button>Mesh Scan</button>
+                
+            </form>
+        </div>
+        <button style="position: relative; z-index: 10;" hx-delete="/scanning/delete-mesh/?mesh_name={{ scan_name }}">Delete Mesh</button>
 
     <div id="mesh-controls" style="
         position: fixed; top: 12px; right: 12px; z-index: 10;
@@ -10,10 +32,14 @@
         padding: 10px 14px; border-radius: 8px;
         font: 13px/1.8 system-ui, sans-serif;">
         <label><input type="checkbox" id="opt-wireframe"> Wireframe</label><br>
-        <label><input type="checkbox" id="opt-rotate"> Auto-rotate</label><br>
+        <label><input type="checkbox" id="opt-rotate"> Auto-rotate camera</label><br>
         <label><input type="checkbox" id="opt-flip" checked> Flip Y/Z (COLMAP)</label><br>
         <button id="opt-reset" style="margin-top: 4px;">Reset view</button>
         <div id="mesh-stats" style="margin-top: 6px; opacity: 0.7;">Loading…</div>
+        <div style="margin-top: 8px; max-width: 220px; opacity: 0.85;">
+            Drag orbits. Right-drag or Shift-drag pans the camera.
+            Scroll zooms. WASD flies, Q/E moves up and down.
+        </div>
     </div>
 {% endblock %}
 
@@ -49,13 +75,28 @@
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.domElement.style.cssText = 'position: fixed; inset: 0; z-index: 0;';
-    document.body.appendChild(renderer.domElement);
+    const canvas = renderer.domElement;
+    // setSize sets the CSS size in screen pixels. Replacing the whole style
+    // drops that, and the canvas then uses its device-pixel buffer as its size,
+    // so the mesh sits in the bottom-right on a high-DPI screen.
+    canvas.style.position = 'fixed';
+    canvas.style.inset = '0';
+    canvas.style.zIndex = '0';
+    canvas.style.touchAction = 'none';
+    canvas.style.display = 'block';
+    document.body.appendChild(canvas);
+    document.body.style.margin = '0';
+    document.body.style.overflow = 'hidden';
 
-    // 2. Orbit controls
+    // 2. Orbit controls. Left-drag orbits around the target, which looks like
+    // the mesh is spinning. Pan and fly move the camera and the target together
+    // so the mesh stays put.
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
+    controls.zoomToCursor = true;
+    controls.keyPanSpeed = 40;
+    controls.listenToKeyEvents(window);
 
     // 3. Lighting: soft ambient/hemisphere + a headlight attached to the camera
     scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.2));
@@ -81,7 +122,53 @@
 
     function applyFlip() {
         // COLMAP uses +Y down / +Z forward; three.js uses +Y up.
+        // Leave Y at 0. Auto-rotate orbits the camera, not this group.
         pivot.rotation.x = flipBox.checked ? Math.PI : 0;
+        pivot.rotation.y = 0;
+    }
+
+    const flyKeys = new Set();
+    const flyMove = new THREE.Vector3();
+    const flyForward = new THREE.Vector3();
+    const flyRight = new THREE.Vector3();
+    const flyUp = new THREE.Vector3();
+
+    window.addEventListener('keydown', (event) => {
+        if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+            return;
+        }
+        flyKeys.add(event.code);
+        if (event.code === 'KeyW' || event.code === 'KeyA' || event.code === 'KeyS' || event.code === 'KeyD' || event.code === 'KeyQ' || event.code === 'KeyE') {
+            event.preventDefault();
+        }
+    });
+    window.addEventListener('keyup', (event) => {
+        flyKeys.delete(event.code);
+    });
+    window.addEventListener('blur', () => flyKeys.clear());
+
+    function flyCamera() {
+        if (flyKeys.size === 0) {
+            return;
+        }
+        camera.getWorldDirection(flyForward);
+        flyRight.crossVectors(flyForward, camera.up).normalize();
+        flyUp.copy(camera.up);
+        flyMove.set(0, 0, 0);
+        const step = Math.max(camera.position.distanceTo(controls.target), 0.1) * 0.02;
+        if (flyKeys.has('KeyW')) flyMove.addScaledVector(flyForward, step);
+        if (flyKeys.has('KeyS')) flyMove.addScaledVector(flyForward, -step);
+        if (flyKeys.has('KeyD')) flyMove.addScaledVector(flyRight, step);
+        if (flyKeys.has('KeyA')) flyMove.addScaledVector(flyRight, -step);
+        if (flyKeys.has('KeyE')) flyMove.addScaledVector(flyUp, step);
+        if (flyKeys.has('KeyQ')) flyMove.addScaledVector(flyUp, -step);
+        if (flyMove.lengthSq() === 0) {
+            return;
+        }
+        // Same offset on the camera and the orbit target. The next controls
+        // update keeps that offset, so the camera flies instead of snapping back.
+        camera.position.add(flyMove);
+        controls.target.add(flyMove);
     }
 
     function resetView() {
@@ -191,17 +278,16 @@
             material.wireframe = wireframeBox.checked;
         }
     });
+    rotateBox.addEventListener('change', () => {
+        controls.autoRotate = rotateBox.checked;
+    });
     flipBox.addEventListener('change', applyFlip);
     resetBtn.addEventListener('click', resetView);
 
     // 8. Animation loop
     function animate() {
         requestAnimationFrame(animate);
-
-        if (rotateBox.checked) {
-            pivot.rotation.y += 0.004;
-        }
-
+        flyCamera();
         controls.update();
         renderer.render(scene, camera);
     }

@@ -59,6 +59,7 @@
       hx-swap="innerHTML">
     
     <!-- 1. The standalone Form field -->
+          <p>Scan settings</p>
     <div class="form-group">
         <label for="file_name">Video to scan:</label>
         <select id="file_name" name="file_name" required>
@@ -67,11 +68,48 @@
     </div>
 
     <!-- 2. The ScanParams fields (Flattened into individual inputs matching the Pydantic field names) -->
+
     <div class="form-group">
         <label for="out_name">Output Name:</label>
         <input type="text" id="out_name" name="out_name" required value="scan_output_1">
     </div>
+        <div class="form-group">
+        <label for="max_distance">Max Distance:</label>
+        <input type="number" step="0.5" id="max_distance" name="max_distance" value="5.0">
+    </div>
 
+    <div class="form-group">
+        <label for="frame_interval">Frame Interval:</label>
+        <input type="number" id="frame_interval" name="frame_interval" value="8">
+    </div>
+    <p>Point Cloud Settings</p>
+    <div class="form-group">
+        <label for="max_num_feats">Max features:</label>
+        <input type="number" id="max_num_feats" name="max_num_feats" value="10000" min="1" required>
+    </div>
+
+    <div class="form-group">
+        <label for="peak_thresh">Peak threshold:</label>
+        <input type="number" id="peak_thresh" name="peak_thresh" value="0.0001" step="0.0001" min="0" required>
+    </div>
+
+    <div class="form-group">
+        <label for="estimate_shape">Estimate affine shape:</label>
+        <select id="estimate_shape" name="estimate_shape">
+            <option value="true">True</option>
+            <option value="false">False</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="domain_pooling">Domain size pooling:</label>
+        <select id="domain_pooling" name="domain_pooling">
+            <option value="false">False</option>
+            <option value="true">True</option>
+        </select>
+    </div>
+
+    <p>Mesh Settings</p>
     <div class="form-group">
         <label for="mesh">Enable Mesh:</label>
         <!-- For booleans, a select dropdown or checkbox works perfectly with FastAPI -->
@@ -81,15 +119,7 @@
         </select>
     </div>
 
-    <div class="form-group">
-        <label for="max_distance">Max Distance:</label>
-        <input type="number" step="0.5" id="max_distance" name="max_distance" value="20.0">
-    </div>
 
-    <div class="form-group">
-        <label for="frame_interval">Frame Interval:</label>
-        <input type="number" id="frame_interval" name="frame_interval" value="8">
-    </div>
 
     <div class="form-group">
         <label for="depth">Depth:</label>
@@ -103,7 +133,7 @@
 
     <div class="form-group">
         <label for="trim">Trim:</label>
-        <input type="number" id="trim" name="trim" value="10">
+        <input type="number" id="trim" name="trim" value="5">
     </div>
 
     <!-- Submitting triggers the hx-post -->

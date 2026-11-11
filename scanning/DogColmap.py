@@ -1,7 +1,7 @@
 
 import os
 from pathlib import Path
-
+import shutil
 import numpy as np
 import open3d as o3d
 import pycolmap
@@ -17,9 +17,13 @@ class DogColmap:
         file_name,
         file_path,
         out_name,
+        max_num_feats,
+        peak_thresh,
+        estimate_shape,
+        domain_pooling,
         depth=9,
         pw=2.0,
-        trim=7.0,
+        trim=5.0,
         frame_interval=8,
         max_distance=10,
         mesh=False,
@@ -32,6 +36,11 @@ class DogColmap:
         self._file_name = file_name
         self._file_path = file_path
         self._out_name = out_name
+
+        self._max_num_feats = max_num_feats
+        self._peak_thresh =  peak_thresh
+        self._estimate_shape = estimate_shape
+        self._domain_pooling = domain_pooling
 
         self._depth = depth
         self._pw = pw
@@ -65,7 +74,7 @@ class DogColmap:
 
             # 4. Generate mesh if requested
             if self._mesh:
-                self.mesh_poisson()
+                self.mesh_poisson(self._ply_path, self._mesh_path)
                 return self._mesh_path
 
 
@@ -75,8 +84,6 @@ class DogColmap:
             print(f"Reconstruction failed: {e}")
             raise
 
-        
-        
 
     def reconstruct_dog(self):
         self._sparse_dir.mkdir(parents=True, exist_ok=True)
@@ -85,8 +92,10 @@ class DogColmap:
         database_path = self._sparse_dir / "database.db"
 
         extraction_opts = pycolmap.FeatureExtractionOptions()
-        extraction_opts.sift.max_num_features = 8192
-        extraction_opts.sift.estimate_affine_shape = True
+        extraction_opts.sift.max_num_features = self._max_num_feats
+        extraction_opts.sift.peak_threshold = self._peak_thresh
+        extraction_opts.sift.estimate_affine_shape = self._estimate_shape
+        extraction_opts.sift.domain_size_pooling = self._domain_pooling
 
         pycolmap.extract_features(
             database_path,
@@ -190,9 +199,15 @@ class DogColmap:
 
         return ply_path
 
-    def mesh_poisson(self):
+    def mesh_poisson(self, ply_path, mesh_path):
+        # make ply copy
+        copy_path = f"{ply_path[:-3]}.copy.ply"
+        shutil.copyfile(ply_path, copy_path)
+
+        ply_path = copy_path
+
         # Estimate normals on the original sparse PLY
-        ready_ply = self.estimate_normals(self._ply_path)
+        ready_ply = self.estimate_normals(ply_path)
 
         # Ensure mesh directory exists
         self._mesh_dir.mkdir(parents=True, exist_ok=True)
@@ -206,10 +221,21 @@ class DogColmap:
 
         pycolmap.poisson_meshing(
             str(ready_ply),
-            str(self._mesh_path),
+            str(mesh_path),
             options=poisson_options,
         )
 
-        print(f"Final mesh saved to: {self._mesh_path}")
+        print(f"Final mesh saved to: {mesh_path}")
+        # Delete copy
+        os.remove(copy_path)
 
-        return self._mesh_path
+        return mesh_path
+
+    def set_pw(self, pw):
+        self._pw = pw
+
+    def set_trim(self,trim):
+        self._trim  = trim
+    
+    def set_depth(self, depth):
+        self._depth = depth

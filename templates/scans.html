@@ -1,0 +1,19 @@
+{% extends "index.html" %}
+{% block content %}
+<section class="page">
+  <header class="page-head">
+    <p class="kicker">Point clouds</p>
+    <h1>Your scans</h1>
+    <p class="lede">Sparse reconstructions saved from your videos.</p>
+  </header>
+  <div
+    id="userScans"
+    class="panel"
+    hx-get="/scanning/get-scans/"
+    hx-swap="innerHTML"
+    hx-trigger="load"
+    hx-target="#userScans">
+    <p class="empty">Loading scans…</p>
+  </div>
+</section>
+{% endblock %}

@@ -1,38 +1,39 @@
 {% extends "index.html" %}
+{% block body_class %}is-viewer{% endblock %}
 
 {% block content %}
-    <a href="/">Back</a>
-    <h2>{{ scan_name }}</h2>
-    <label>
-        Point size
+<details class="viewer-hud">
+    <summary class="viewer-toggle">Options</summary>
+    <a class="btn btn-small" href="/scans/">Back to scans</a>
+    <h1 class="viewer-title">{{ scan_name }}</h1>
+
+    <label class="field">
+        <span class="label">Point size</span>
         <input type="range" id="pointSize" min="0.5" max="10" step="0.5" value="2">
-        <div>
-
-            <form hx-post="/scanning/mesh-scan/">
-                <div class="form-group">
-                    <label for="Depth">Depth:</label>
-                    <input type="number" id="depth" name="depth" required value="9">
-                </div>
-                <div class="form-group">
-                    <label for="PW">PW:</label>
-                    <input type="number" id="pw" name="pw" required value="2.0"">
-                </div>
-                <div class="form-group">
-                    <label for="Trim">Trim:</label>
-                    <input type="number" id="trim" name="trim" required value="5">
-                </div>
-                <div class="hidden-form-group">
-                    <input type="hidden" name="scan_name" id="{{ scan_name }}" value="{{ scan_name }}">
-                </div>
-                <button>Mesh Scan</button>
-                
-            </form>
-        </div>
-
     </label>
 
-    <button hx-delete="/scanning/delete-scan/?scan_name={{ scan_name }}">Delete Scan</button>
+    <form class="stack" hx-post="/scanning/mesh-scan/">
+        <p class="section-label">Mesh this scan</p>
+        <div class="grid-2">
+            <label class="field">
+                <span class="label">Depth</span>
+                <input type="number" id="depth" name="depth" required value="9">
+            </label>
+            <label class="field">
+                <span class="label">PW</span>
+                <input type="number" id="pw" name="pw" required value="2.0" step="0.1">
+            </label>
+            <label class="field">
+                <span class="label">Trim</span>
+                <input type="number" id="trim" name="trim" required value="5">
+            </label>
+        </div>
+        <input type="hidden" name="scan_name" id="{{ scan_name }}" value="{{ scan_name }}">
+        <button class="btn btn-primary" type="submit">Mesh scan</button>
+    </form>
 
+    <button class="btn btn-danger" hx-delete="/scanning/delete-scan/?scan_name={{ scan_name }}">Delete scan</button>
+</details>
 {% endblock %}
 
 {% block scripts %}
@@ -66,7 +67,13 @@
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+    const canvas = renderer.domElement;
+    canvas.style.position = 'fixed';
+    canvas.style.inset = '0';
+    canvas.style.zIndex = '0';
+    canvas.style.touchAction = 'none';
+    canvas.style.display = 'block';
+    document.body.appendChild(canvas);
 
     // 2. Orbit controls (point clouds need no lighting)
     const controls = new OrbitControls(camera, renderer.domElement);

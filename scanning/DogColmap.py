@@ -72,9 +72,11 @@ class DogColmap:
 
             print(f"Sparse PLY saved: {self._ply_path}")
 
+            self._move_ply()
+
             # 4. Generate mesh if requested
             if self._mesh:
-                self.mesh_poisson(self._ply_path, self._mesh_path)
+                self.mesh_poisson(f"uploaded_videos/{self._user_name}/ply/{self._out_name}.ply", self._mesh_path)
                 return self._mesh_path
 
 
@@ -83,7 +85,6 @@ class DogColmap:
         except Exception as e:
             print(f"Reconstruction failed: {e}")
             raise
-
 
     def reconstruct_dog(self):
         self._sparse_dir.mkdir(parents=True, exist_ok=True)
@@ -201,7 +202,7 @@ class DogColmap:
 
     def mesh_poisson(self, ply_path, mesh_path):
         # make ply copy
-        copy_path = f"{ply_path[:-3]}.copy.ply"
+        copy_path = f"{str(ply_path)[:-3]}copy.ply"
         shutil.copyfile(ply_path, copy_path)
 
         ply_path = copy_path
@@ -231,7 +232,21 @@ class DogColmap:
 
         return mesh_path
 
-    def set_pw(self, pw):
+    def _move_ply(self):
+        try:
+            source_path = f"uploaded_videos/{self._user_name}/{self._file_name}/out/sparse/{self._out_name}.ply" 
+
+            destination_dir = f"uploaded_videos/{self._user_name}/ply"
+            destination = os.path.join(destination_dir, f"{self._out_name}.ply")
+
+            if os.path.exists(destination):
+                os.remove(destination)
+            print(f"{destination}")
+            shutil.move(source_path, destination_dir)
+        except Exception as e:
+            print(e)
+
+    def set_pw(self, pw):   
         self._pw = pw
 
     def set_trim(self,trim):

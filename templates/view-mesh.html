@@ -1,46 +1,43 @@
 {% extends "index.html" %}
+{% block body_class %}is-viewer{% endblock %}
 
 {% block content %}
-    <a href="/" style="position: relative; z-index: 10;">Back</a>
-    <h2 style="position: relative; z-index: 10;">{{ scan_name }}</h2>
-        <div style="position: relative; z-index: 10;">
-            <form hx-post="/scanning/remesh-scan/?scan_name={{ scan_name }} ">
-                <div class="form-group">
-                    <label for="Depth">Depth:</label>
-                    <input type="number" id="depth" name="depth" required value="9">
-                </div>
-                <div class="form-group">
-                    <label for="PW">PW:</label>
-                    <input type="number" id="pw" name="pw" required value="2.0"">
-                </div>
-                <div class="form-group">
-                    <label for="Trim">Trim:</label>
-                    <input type="number" id="trim" name="trim" required value="5">
-                </div>
-                <div class="hidden-form-group">
-                    <input type="hidden" name="scan_name" id="{{ scan_name }}" value="{{ scan_name }}">
-                </div>
-                <button>Mesh Scan</button>
-                
-            </form>
-        </div>
-        <button style="position: relative; z-index: 10;" hx-delete="/scanning/delete-mesh/?mesh_name={{ scan_name }}">Delete Mesh</button>
+<details class="viewer-hud">
+    <summary class="viewer-toggle">Options</summary>
+    <a class="btn btn-small" href="/meshes/">Back to meshes</a>
+    <h1 class="viewer-title">{{ scan_name }}</h1>
 
-    <div id="mesh-controls" style="
-        position: fixed; top: 12px; right: 12px; z-index: 10;
-        background: rgba(0, 0, 0, 0.6); color: #eee;
-        padding: 10px 14px; border-radius: 8px;
-        font: 13px/1.8 system-ui, sans-serif;">
-        <label><input type="checkbox" id="opt-wireframe"> Wireframe</label><br>
-        <label><input type="checkbox" id="opt-rotate"> Auto-rotate camera</label><br>
-        <label><input type="checkbox" id="opt-flip" checked> Flip Y/Z (COLMAP)</label><br>
-        <button id="opt-reset" style="margin-top: 4px;">Reset view</button>
-        <div id="mesh-stats" style="margin-top: 6px; opacity: 0.7;">Loading…</div>
-        <div style="margin-top: 8px; max-width: 220px; opacity: 0.85;">
-            Drag orbits. Right-drag or Shift-drag pans the camera.
-            Scroll zooms. WASD flies, Q/E moves up and down.
+    <form class="stack" hx-post="/scanning/remesh-scan/?scan_name={{ scan_name }}">
+        <p class="section-label">Remesh</p>
+        <div class="grid-2">
+            <label class="field">
+                <span class="label">Depth</span>
+                <input type="number" id="depth" name="depth" required value="9">
+            </label>
+            <label class="field">
+                <span class="label">PW</span>
+                <input type="number" id="pw" name="pw" required value="2.0" step="0.1">
+            </label>
+            <label class="field">
+                <span class="label">Trim</span>
+                <input type="number" id="trim" name="trim" required value="5">
+            </label>
         </div>
+        <input type="hidden" name="scan_name" id="{{ scan_name }}" value="{{ scan_name }}">
+        <button class="btn btn-primary" type="submit">Update mesh</button>
+    </form>
+
+    <button class="btn btn-danger" hx-delete="/scanning/delete-mesh/?mesh_name={{ scan_name }}">Delete mesh</button>
+
+    <div id="mesh-controls" class="checks">
+        <label><input type="checkbox" id="opt-wireframe"> Wireframe</label>
+        <label><input type="checkbox" id="opt-rotate"> Auto-rotate camera</label>
+        <label><input type="checkbox" id="opt-flip" checked> Flip Y/Z (COLMAP)</label>
+        <button id="opt-reset" class="btn btn-small" type="button">Reset view</button>
+        <div id="mesh-stats" class="stats">Loading…</div>
+        <p class="hint">Drag orbits. Right-drag or Shift-drag pans the camera. Scroll zooms. WASD flies, Q/E moves up and down.</p>
     </div>
+</details>
 {% endblock %}
 
 {% block scripts %}

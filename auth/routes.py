@@ -19,16 +19,18 @@ def login_for_access_token(response: Response, form_data: OAuth2PasswordRequestF
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
         return HTMLResponse("""
-            <p>Username or Password incorrect</p>
-                            """)
+            <div class="alert alert-bad" role="alert">
+            <p>Invalid username or password. Try again.</p>
+            </div>
+        """)
 
 
     
     access_token = create_access_token(data={"sub":user.username})
 
     html = HTMLResponse("""
-        <div class="alert alert-success">
-            <p>Login successful! Redirecting shortly</p>
+        <div class="alert alert-ok" role="status">
+            <p>Login successful. Taking you home.</p>
             <meta http-equiv="refresh" content="3;url=/" />
         </div>
         """)
@@ -60,8 +62,8 @@ def signup(user: Annotated[UserCreate, Form()], db: Session = Depends(get_db)):
     os.makedirs(f"{user_dir}/ply", exist_ok=True)
 
     return HTMLResponse("""
-        <div class="alert alert-success">
-            <p>Signup successful! Redirecting shortly</p>
+        <div class="alert alert-ok" role="status">
+            <p>Signup successful. Taking you to log in.</p>
             <meta http-equiv="refresh" content="3;url=/login/" />
         </div>
         """)

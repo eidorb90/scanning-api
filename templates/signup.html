@@ -1,29 +1,32 @@
-
 {% extends "index.html" %}
 {% block content %}
-    <H2>Signup</H2>
-    <form 
-    hx-post="/auth/signup/"
-    hx-swap="innerHTML"
-    hx-encoding="multipart/form-data"
-    hx-target="#errorText"
-    >
-  <div>
-    <label for="username">Username:</label>
-    <input type="text" id="username" name="username" required>
+<section class="auth">
+  <div class="form-card auth-card">
+    <form
+      class="stack"
+      hx-post="/auth/signup/"
+      hx-swap="innerHTML"
+      hx-encoding="multipart/form-data"
+      hx-target="#errorText">
+      <header class="page-head">
+        <p class="kicker">Account</p>
+        <h1>Sign up</h1>
+      </header>
+
+      <label class="field" for="username">
+        <span class="label">Username</span>
+        <input type="text" id="username" name="username" autocomplete="username" required>
+      </label>
+
+      <label class="field" for="password">
+        <span class="label">Password</span>
+        <input type="password" id="password" name="password" autocomplete="new-password" required>
+      </label>
+
+      <button class="btn btn-primary btn-block" type="submit">Sign up</button>
+      <p class="auth-switch">Already registered? <a href="/login/">Log in</a></p>
+    </form>
+    <div id="errorText" class="notice"></div>
   </div>
-
-  <div>
-    <label for="password">Password:</label>
-    <input type="password" id="password" name="password" required>
-  </div>
-
-
-
-  <button type="submit">Submit</button>
-</form>
-<div id="errorText">
-    <h1></h1>
-</div>
-    <a href="http://bigman.tailc9dd83.ts.net:8000/login/">Login</a>
+</section>
 {% endblock %}

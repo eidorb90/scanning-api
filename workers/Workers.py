@@ -6,6 +6,8 @@ from concurrent.futures import ThreadPoolExecutor
 from scanning.DogColmap import DogColmap
 from basics.Queue import ScanQueue
 from .Jobs import ScanJob
+import time
+from scanning.utils import get_video_frames
 
 
 
@@ -25,11 +27,16 @@ class ScanWorker(Worker):
         super().__init__(jobQueue)
         self.executor = ThreadPoolExecutor(max_workers=1)
         self._test_params = {
-            "num_feats": [9000, 10000, 12000, 14000, 16000],
+            "intervals": [8, 10, 12],
+            "num_feats": [9000, 8000, 10000],
             "peak_thresh": [0.01, 0.001, 0.0001],
             "domain_pooling": False,
             "estimate_shape": True,
         }
+
+    def _log_results(self, frames, feats, thresh, time, file_name):
+        with open(f"uploaded_videos/{file_name}", "a") as file:
+            file.write(f"{frames}, {feats}, {thresh}, {time}\n")
 
     async def work(self):
         try:
@@ -45,15 +52,21 @@ class ScanWorker(Worker):
                     if self._test and self._test_params:
                         for feats in self._test_params["num_feats"]:
                             for peak_thresh in self._test_params["peak_thresh"]:
-                            
-                                job.max_num_feats = feats
-                                job.peak_thresh = peak_thresh
-                                job.estimate_shape = self._test_params["estimate_shape"]
-                                job.domain_pooling = self._test_params["domain_pooling"]
-                                job.out_name = f"{job.file_name}_{job.max_num_feats}_{job.peak_thresh}"
+                                for interval in self._test_params["intervals"]:
+                                    start_time = time.perf_counter()
+                                    job.max_num_feats = feats
+                                    job.peak_thresh = peak_thresh
+                                    job.estimate_shape = self._test_params["estimate_shape"]
+                                    job.domain_pooling = self._test_params["domain_pooling"]
+                                    job.out_name = f"{job.file_name}_{job.max_num_feats}_{job.peak_thresh}_{interval}"
+                                    job.frame_count = get_video_frames(job.file_path, interval)
 
+                                    job.mesh = False
 
-                                await self._process(job)                        
+                                    await self._process(job)                        
+                                    end_time = time.perf_counter()
+                                    total_time = end_time - start_time
+                                    self._log_results(frames=job.frame_count, feats=job.max_num_feats, thresh=peak_thresh, time=total_time, file_name="temp_log_file.csv")
                     else:
                         print(f"Processing scan for {job.user_name}/{job.file_name}")
                         await self._process(job)
@@ -83,21 +96,7 @@ class ScanWorker(Worker):
         finally:
             self.jobQueue.set_active(None)
 
-    def _move_ply(self, job):
-        try:
-            if job.mesh:
-                source_path = f"uploaded_videos/{job.user_name}/{job.file_name}/out/sparse/{job.out_name}.ply"
-            else:
-                source_path = f"uploaded_videos/{job.user_name}/{job.file_name}/out/sparse/{job.out_name}.ply" 
 
-            destination_dir = f"uploaded_videos/{job.user_name}/ply"
-            destination = os.path.join(destination_dir, f"{job.out_name}.ply")
-
-            if os.path.exists(destination):
-                os.remove(destination)
-            shutil.move(source_path, destination_dir)
-        except Exception as e:
-            print(e)
 
     def _clean_up(self, job):
         try:
@@ -106,7 +105,7 @@ class ScanWorker(Worker):
         except Exception as e:
             print(e)
 
-    def _run_job(self, job: ScanJob, mesh=False):
+    def _run_job(self, job: ScanJob):
         """Synchronous work that runs in the thread pool."""
         os.makedirs(job.frames_path, exist_ok=True)
         os.makedirs(job.sparse_path, exist_ok=True)
@@ -132,5 +131,4 @@ class ScanWorker(Worker):
             mesh_dir=job.mesh_path,
         )
         dc.run()
-        self._move_ply(job)
-        self._clean_up(job)
+        # self._clean_up(job)

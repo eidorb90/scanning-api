@@ -1,0 +1,118 @@
+{% extends "index.html" %}
+{% block content %}
+<section class="page page-narrow">
+  {% if False %}
+  <div class="form-card">
+    <h1>Currently testing</h1>
+    <p class="lede">No new scans are available at this time.</p>
+  </div>
+  {% else %}
+  <form
+    class="form-card stack"
+    hx-post="/scanning/start-scan/"
+    hx-target="#errorText"
+    hx-swap="innerHTML">
+    <header class="page-head">
+      <p class="kicker">Reconstruction</p>
+      <h1>Configure scan</h1>
+      <p class="lede">Pick a source video and set the reconstruction before it joins the queue.</p>
+    </header>
+
+    <section class="stack">
+      <h2 class="section-label">Scan settings</h2>
+      <div class="grid-2">
+        <div
+          class="field span-2"
+          hx-get="/scanning/get-uploaded-videos/?options=True"
+          hx-swap="innerHTML"
+          hx-trigger="load, videoUploaded from:body"
+          hx-target="#file_name">
+          <label class="label" for="file_name">Video to scan</label>
+          <select id="file_name" name="file_name" required>
+            <option value="">Loading videos…</option>
+          </select>
+        </div>
+
+        <label class="field span-2" for="out_name">
+          <span class="label">Output name</span>
+          <input type="text" id="out_name" name="out_name" value="scan_output_1" required>
+        </label>
+
+        <label class="field" for="max_distance">
+          <span class="label">Max distance</span>
+          <input type="number" step="0.5" id="max_distance" name="max_distance" value="5.0">
+        </label>
+
+        <label class="field" for="frame_interval">
+          <span class="label">Frame interval</span>
+          <input type="number" id="frame_interval" name="frame_interval" value="8">
+        </label>
+      </div>
+    </section>
+
+    <section class="section-break">
+      <h2 class="section-label">Point cloud settings</h2>
+      <div class="grid-2">
+        <label class="field" for="max_num_feats">
+          <span class="label">Max features</span>
+          <input type="number" id="max_num_feats" name="max_num_feats" value="10000" min="1" required>
+        </label>
+
+        <label class="field" for="peak_thresh">
+          <span class="label">Peak threshold</span>
+          <input type="number" id="peak_thresh" name="peak_thresh" value="0.0001" step="0.0001" min="0" required>
+        </label>
+
+        <label class="field" for="estimate_shape">
+          <span class="label">Estimate affine shape</span>
+          <select id="estimate_shape" name="estimate_shape">
+            <option value="true">True</option>
+            <option value="false">False</option>
+          </select>
+        </label>
+
+        <label class="field" for="domain_pooling">
+          <span class="label">Domain size pooling</span>
+          <select id="domain_pooling" name="domain_pooling">
+            <option value="false">False</option>
+            <option value="true">True</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <section class="section-break">
+      <h2 class="section-label">Mesh settings</h2>
+      <div class="grid-2">
+        <label class="field" for="mesh">
+          <span class="label">Enable mesh</span>
+          <select id="mesh" name="mesh">
+            <option value="true">True</option>
+            <option value="false">False</option>
+          </select>
+        </label>
+
+        <label class="field" for="depth">
+          <span class="label">Depth</span>
+          <input type="number" id="depth" name="depth" value="8">
+        </label>
+
+        <label class="field" for="pw">
+          <span class="label">PW</span>
+          <input type="number" step="0.1" id="pw" name="pw" value="2.0">
+        </label>
+
+        <label class="field" for="trim">
+          <span class="label">Trim</span>
+          <input type="number" id="trim" name="trim" value="5">
+        </label>
+      </div>
+    </section>
+
+    <div id="errorText" class="notice" role="status"></div>
+
+    <button class="btn btn-primary btn-block" type="submit">Start scan</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

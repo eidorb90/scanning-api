@@ -1,0 +1,19 @@
+{% extends "index.html" %}
+{% block content %}
+<section class="page">
+  <header class="page-head">
+    <p class="kicker">Surfaces</p>
+    <h1>Your meshes</h1>
+    <p class="lede">Poisson meshes built from your scans.</p>
+  </header>
+  <div
+    id="userMeshes"
+    class="panel"
+    hx-get="/scanning/get-meshes/"
+    hx-swap="innerHTML"
+    hx-trigger="load"
+    hx-target="#userMeshes">
+    <p class="empty">Loading meshes…</p>
+  </div>
+</section>
+{% endblock %}

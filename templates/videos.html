@@ -1,0 +1,76 @@
+{% extends "index.html" %}
+{% block content %}
+<section class="page">
+  <header class="page-head">
+    <p class="kicker">Source footage</p>
+    <h1>Your videos</h1>
+    <p class="lede">Upload a clip, then use it when you start a scan.</p>
+  </header>
+
+  <div class="split">
+    <div
+      id="userVideos"
+      class="panel"
+      hx-get="/scanning/get-uploaded-videos/"
+      hx-swap="innerHTML"
+      hx-trigger="load, videoUploaded from:body"
+      hx-target="#userVideos"
+      hx-on::after-swap="fillScanVideos()">
+      <p class="empty">Loading videos…</p>
+    </div>
+
+    <form
+      id="videoUpload"
+      class="form-card stack"
+      hx-post="/scanning/upload-video/"
+      hx-encoding="multipart/form-data"
+      hx-target="#errorText"
+      hx-swap="innerHTML"
+      hx-on::after-request="if (event.detail.successful) htmx.trigger(document.body, 'videoUploaded')">
+      <p class="section-label">Upload</p>
+      <label class="field" for="file-upload">
+        <span class="label">Video file</span>
+        <input type="file" id="file-upload" name="file" accept="video/*" required>
+      </label>
+      <button class="btn btn-primary" type="submit">Upload file</button>
+      <div id="errorText" class="notice"></div>
+    </form>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+    function fillScanVideos() {
+        var list = document.querySelectorAll("#userVideos li");
+        var select = document.getElementById("file_name");
+        if (!select) {
+            return;
+        }
+        var current = select.value;
+        var names = [];
+        list.forEach(function (item) {
+            var name = item.textContent.trim();
+            if (name && name !== "loading...") {
+                names.push(name);
+            }
+        });
+
+        select.replaceChildren();
+        if (names.length === 0) {
+            var empty = document.createElement("option");
+            empty.value = "";
+            empty.textContent = "No videos uploaded";
+            select.appendChild(empty);
+            return;
+        }
+
+        names.forEach(function (name) {
+            var option = document.createElement("option");
+            option.value = name;
+            option.textContent = name;
+            select.appendChild(option);
+        });
+        select.value = names.indexOf(current) !== -1 ? current : names[0];
+    }
+</script>
+{% endblock %}

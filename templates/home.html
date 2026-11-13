@@ -1,183 +1,33 @@
-
 {% extends "index.html" %}
 {% block content %}
-  
-    <H1>Home</H1>
-    <h2>Welcome {{ username }}</h2>
-    <form action="/auth/logout/" method="post">
-    <button type="submit">
-        Logout
-    </button>
-    </form>
-    <!-- The form automatically collects all input values inside it -->
-    <h2>Your Videos</h2>
-    <div id="userVideos"
-        hx-get="/scanning/get-uploaded-videos/"
-        hx-swap="innerHTML"
-        hx-trigger="load, videoUploaded from:body"
-        hx-target="#userVideos"
-        hx-on::after-swap="fillScanVideos()"
-    >
-        <li>loading...</li>
-    </div>
+<section class="page">
+  <header class="page-head">
+    <p class="kicker">Workspace</p>
+    <h1>Welcome, {{ username }}</h1>
+    <p class="lede">Upload footage, reconstruct a point cloud, then turn it into a mesh.</p>
+  </header>
 
-   <form    id="videoUpload"    
-            hx-post="/scanning/upload-video/"  
-            hx-encoding="multipart/form-data"
-            hx-target="#errorText"
-            hx-swap="innerHTML"  
-            hx-on::after-request="if (event.detail.successful) htmx.trigger(document.body, 'videoUploaded')"
-        >
-        <label for="file-upload">Choose a video to upload</label>
-        <input type="file" id="file-upload" name="file" accept="video/*" required>
-  
-        <button type="submit">Upload File</button>
-    </form> 
-
-    <h2>Your Scans</h2>
-    <div id="userScans"
-        hx-get="/scanning/get-scans/"
-        hx-swap="innerHTML"
-        hx-trigger="load"
-        hx-target="#userScans"
-    >
-        <li>loading...</li>
-    </div>
-
-    <h2>Your Meshes</h2>
-    <div id="userMeshes"
-        hx-get="/scanning/get-meshes/"
-        hx-swap="innerHTML"
-        hx-trigger="load"
-        hx-target="#userMeshes"
-    >
-        <li>loading...</li>
-    </div>
-<div>
-<form hx-post="/scanning/start-scan/" 
-      hx-target="#errorText" 
-      hx-swap="innerHTML">
-    
-    <!-- 1. The standalone Form field -->
-          <p>Scan settings</p>
-    <div class="form-group">
-        <label for="file_name">Video to scan:</label>
-        <select id="file_name" name="file_name" required>
-            <option value="">Loading videos...</option>
-        </select>
-    </div>
-
-    <!-- 2. The ScanParams fields (Flattened into individual inputs matching the Pydantic field names) -->
-
-    <div class="form-group">
-        <label for="out_name">Output Name:</label>
-        <input type="text" id="out_name" name="out_name" required value="scan_output_1">
-    </div>
-        <div class="form-group">
-        <label for="max_distance">Max Distance:</label>
-        <input type="number" step="0.5" id="max_distance" name="max_distance" value="5.0">
-    </div>
-
-    <div class="form-group">
-        <label for="frame_interval">Frame Interval:</label>
-        <input type="number" id="frame_interval" name="frame_interval" value="8">
-    </div>
-    <p>Point Cloud Settings</p>
-    <div class="form-group">
-        <label for="max_num_feats">Max features:</label>
-        <input type="number" id="max_num_feats" name="max_num_feats" value="10000" min="1" required>
-    </div>
-
-    <div class="form-group">
-        <label for="peak_thresh">Peak threshold:</label>
-        <input type="number" id="peak_thresh" name="peak_thresh" value="0.0001" step="0.0001" min="0" required>
-    </div>
-
-    <div class="form-group">
-        <label for="estimate_shape">Estimate affine shape:</label>
-        <select id="estimate_shape" name="estimate_shape">
-            <option value="true">True</option>
-            <option value="false">False</option>
-        </select>
-    </div>
-
-    <div class="form-group">
-        <label for="domain_pooling">Domain size pooling:</label>
-        <select id="domain_pooling" name="domain_pooling">
-            <option value="false">False</option>
-            <option value="true">True</option>
-        </select>
-    </div>
-
-    <p>Mesh Settings</p>
-    <div class="form-group">
-        <label for="mesh">Enable Mesh:</label>
-        <!-- For booleans, a select dropdown or checkbox works perfectly with FastAPI -->
-        <select id="mesh" name="mesh">
-            <option value="true">True</option>
-            <option value="false">False</option>
-        </select>
-    </div>
-
-
-
-    <div class="form-group">
-        <label for="depth">Depth:</label>
-        <input type="number" id="depth" name="depth" value="8">
-    </div>
-
-    <div class="form-group">
-        <label for="pw">PW:</label>
-        <input type="number" id="pw" name="pw" value="2.0">
-    </div>
-
-    <div class="form-group">
-        <label for="trim">Trim:</label>
-        <input type="number" id="trim" name="trim" value="5">
-    </div>
-
-    <!-- Submitting triggers the hx-post -->
-    <button type="submit">Start Scan</button>
-</form>
-</div>
-<!-- This container will hold the response or a success message -->
-<div id="errorText"></div>
-
-
-{% endblock %}
-{% block scripts %}
-<script>
-function fillScanVideos() {
-    var list = document.querySelectorAll("#userVideos li");
-    var select = document.getElementById("file_name");
-    if (!select) {
-        return;
-    }
-    var current = select.value;
-    var names = [];
-    list.forEach(function (item) {
-        var name = item.textContent.trim();
-        if (name && name !== "loading...") {
-            names.push(name);
-        }
-    });
-
-    select.replaceChildren();
-    if (names.length === 0) {
-        var empty = document.createElement("option");
-        empty.value = "";
-        empty.textContent = "No videos uploaded";
-        select.appendChild(empty);
-        return;
-    }
-
-    names.forEach(function (name) {
-        var option = document.createElement("option");
-        option.value = name;
-        option.textContent = name;
-        select.appendChild(option);
-    });
-    select.value = names.indexOf(current) !== -1 ? current : names[0];
-}
-</script>
+  <div class="dash">
+    <a class="dash-card" href="/videos/">
+      <span class="kicker">01</span>
+      <strong>Videos</strong>
+      <span>Add the clips you want to reconstruct.</span>
+    </a>
+    <a class="dash-card" href="/new-scan/">
+      <span class="kicker">02</span>
+      <strong>New scan</strong>
+      <span>Choose a video and start a reconstruction.</span>
+    </a>
+    <a class="dash-card" href="/scans/">
+      <span class="kicker">03</span>
+      <strong>Scans</strong>
+      <span>Open a point cloud and mesh it.</span>
+    </a>
+    <a class="dash-card" href="/meshes/">
+      <span class="kicker">04</span>
+      <strong>Meshes</strong>
+      <span>Review the surfaces you have already built.</span>
+    </a>
+  </div>
+</section>
 {% endblock %}

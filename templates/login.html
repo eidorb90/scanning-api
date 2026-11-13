@@ -1,27 +1,32 @@
-
 {% extends "index.html" %}
 {% block content %}
-    <H2>LOGIN</H2>
-    <form 
-    hx-post="/auth/token/"
-    hx-swap="innerHTML"
-    hx-encoding="multipart/form-data"
-    hx-target="#errorText"
-    >
-  <div>
-    <label for="username">Username:</label>
-    <input type="text" id="username" name="username" required>
-  </div>
+<section class="auth">
+  <div class="form-card auth-card">
+    <form
+      class="stack"
+      hx-post="/auth/token/"
+      hx-swap="innerHTML"
+      hx-encoding="multipart/form-data"
+      hx-target="#errorText">
+      <header class="page-head">
+        <p class="kicker">Account</p>
+        <h1>Log in</h1>
+      </header>
 
-  <div>
-    <label for="password">Password:</label>
-    <input type="password" id="password" name="password" required>
-  </div>
+      <label class="field" for="username">
+        <span class="label">Username</span>
+        <input type="text" id="username" name="username" autocomplete="username" required>
+      </label>
 
-  <button type="submit">Submit</button>
-</form>
-<div id="errorText">
-    <h1></h1>
-</div>
-    <a href="http://bigman.tailc9dd83.ts.net:8000/signup/">Signup</a>
+      <label class="field" for="password">
+        <span class="label">Password</span>
+        <input type="password" id="password" name="password" autocomplete="current-password" required>
+      </label>
+
+      <button class="btn btn-primary btn-block" type="submit">Log in</button>
+      <p class="auth-switch">Need an account? <a href="/signup/">Sign up</a></p>
+    </form>
+    <div id="errorText" class="notice"></div>
+  </div>
+</section>
 {% endblock %}

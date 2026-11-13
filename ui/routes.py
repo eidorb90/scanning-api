@@ -25,6 +25,46 @@ async def home(request: Request, current_user: User = Depends(get_current_user))
         context={"request": request, "title": "Home Page", "username": username},
     )
 
+@router.get("/scans/", response_class=HTMLResponse)
+async def scans(request: Request, current_user: User = Depends(get_current_user)):
+    username = current_user.username
+
+    return templates.TemplateResponse(
+        request,
+        name="scans.html",
+        context={"request": request, "title": "Scans", "username": username},
+    )
+
+@router.get("/meshes/", response_class=HTMLResponse)
+async def meshes(request: Request, current_user: User = Depends(get_current_user)):
+    username = current_user.username
+
+    return templates.TemplateResponse(
+        request,
+        name="meshes.html",
+        context={"request": request, "title": "Meshes", "username": username},
+    )
+
+@router.get("/videos/", response_class=HTMLResponse)
+async def videos(request: Request, current_user: User = Depends(get_current_user)):
+    username = current_user.username
+
+    return templates.TemplateResponse(
+        request,
+        name="videos.html",
+        context={"request": request, "title": "Videos", "username": username},
+    )
+    
+@router.get("/new-scan/", response_class=HTMLResponse)
+async def new_scan(request: Request, current_user: User = Depends(get_current_user)):
+    username = current_user.username
+
+    return templates.TemplateResponse(
+        request,
+        name="new-scan.html",
+        context={"request": request, "title": "New Scan", "username": username},
+    )
+
 @router.get("/login/", response_class=HTMLResponse)
 async def login(request: Request):
     return templates.TemplateResponse(

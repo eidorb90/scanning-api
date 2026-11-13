@@ -13,6 +13,7 @@ from .models import ScanParams, MeshParams
 from .utils import get_video_frames
 from scanning.DogColmap import DogColmap
 import os
+from html import escape
 
 
 UPLOAD_DIR = "uploaded_videos"
@@ -35,14 +36,14 @@ async def upload_video(current_user: User = Depends(get_current_user), file: Upl
 
     os.makedirs(f"{UPLOAD_DIR}/{username}/{file.filename}")
     html_string = f"""
-    <p>Successfully added uploaded Video for {current_user.username} <p/>
+    <div class="alert alert-ok" role="status"><p>Uploaded {escape(file.filename)}.</p></div>
     """
     try:
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
     except Exception as e:
         html_string = f"""
-                <p>An Error occured while uploading video {e}<p/>
+                <div class="alert alert-bad" role="alert"><p>Could not upload that video. {escape(str(e))}</p></div>
                 """
  
     finally:
@@ -88,12 +89,14 @@ async def start_scan(scan_params: ScanParams = Form(), current_user: User = Depe
 
         SCANJOB_QUEUE.enqueue(new_scan_job)
         return HTMLResponse(f"""
-            <p>You are a position {SCANJOB_QUEUE.length()} in the Queue </p>
-            <p>Please refresh Estimated time to finish is {SCANJOB_QUEUE.estimated_wait(SCANJOB_QUEUE.length())} minutes </p>
+            <div class="alert alert-ok" role="status">
+            <p>You are position {SCANJOB_QUEUE.length()} in the queue.</p>
+            <p>Estimated wait is {SCANJOB_QUEUE.estimated_wait(SCANJOB_QUEUE.length())} minutes. Refresh to check again.</p>
+            </div>
             """)
     except Exception as e:
         return HTMLResponse(f"""
-        <p> An error occured {e} </p>
+        <div class="alert alert-bad" role="alert"><p>Could not start that scan. {escape(str(e))}</p></div>
         """)
 
 @router.get("/download-scan/")
@@ -111,37 +114,62 @@ async def get_scans(current_user: User = Depends(get_current_user)):
     user_name = current_user.username
     user_scan_path = Path(f"{UPLOAD_DIR}/{user_name}/ply")
     files = [f for f in user_scan_path.iterdir() if f.is_file()]
-    if files is None:
-        return HTMLResponse("You dont have any scans yet")
+    if not files:
+        return HTMLResponse("<p class=\"empty\">You don't have any scans yet</p>")
 
-    items = "".join(f"<li> {f.name} <a href='/view-scan/?scan_name={f.name}' >View</a> </li>" for f in files)
-    return HTMLResponse("<ul>" + items + "</ul>")
+    items = "".join(
+        "<li class=\"row\">"
+        f"<span class=\"row-name\">{escape(f.name)}</span>"
+        f"<a href=\"/view-scan/?scan_name={escape(f.name)}\">View</a>"
+        "</li>"
+        for f in files
+    )
+    return HTMLResponse("<ul class=\"rows\">" + items + "</ul>")
 
 @router.get("/get-uploaded-videos/", response_class=HTMLResponse)
-async def get_uploaded_videos(current_user: User = Depends(get_current_user)):
+async def get_uploaded_videos(current_user: User = Depends(get_current_user), options: bool=False):
     user_name = current_user.username
     user_video_path = Path(f"{UPLOAD_DIR}/{user_name}")
 
     video_dirs = [d for d in user_video_path.iterdir() if d.is_dir()]
 
-    if video_dirs is None:
-        return HTMLResponse("You dont have any uploaded vidoes yet")
-    
-  
-    itmes = "".join(f"<li> {d.name} </li>" for d in video_dirs if d.name != "ply" and d.name != "mesh")
-    return HTMLResponse("<ul>" + itmes + "</ul>")
+    names = [d.name for d in video_dirs if d.name not in ("ply", "mesh")]
+    if not names:
+        if options:
+            return HTMLResponse("<option value=\"\">No videos uploaded</option>")
+        return HTMLResponse("<p class=\"empty\">You don't have any uploaded videos yet</p>")
 
+    if options:
+        items = "".join(
+            f"<option value=\"{escape(name)}\">{escape(name)}</option>"
+            for name in names
+        )
+        html = items
+    else:
+        items = "".join(
+            f"<li class=\"row\"><span class=\"row-name\">{escape(name)}</span></li>"
+            for name in names
+        )
+        html = "<ul class=\"rows\">" + items + "</ul>"
+    print(html)
+    return HTMLResponse(html)
 
 @router.get("/get-meshes/", response_class=HTMLResponse)
 async def get_meshes(current_user: User = Depends(get_current_user)):
     user_name = current_user.username
     user_scan_path = Path(f"{UPLOAD_DIR}/{user_name}/mesh")
     files = [f for f in user_scan_path.iterdir() if f.is_file()]
-    if files is None:
-        return HTMLResponse("You dont have any meshes yet")
+    if not files:
+        return HTMLResponse("<p class=\"empty\">You don't have any meshes yet</p>")
 
-    items = "".join(f"<li> {f.name} <a href='/view-mesh/?mesh_name={f.name}' >View</a> </li>" for f in files)
-    return HTMLResponse("<ul>" + items + "</ul>")
+    items = "".join(
+        "<li class=\"row\">"
+        f"<span class=\"row-name\">{escape(f.name)}</span>"
+        f"<a href=\"/view-mesh/?mesh_name={escape(f.name)}\">View</a>"
+        "</li>"
+        for f in files
+    )
+    return HTMLResponse("<ul class=\"rows\">" + items + "</ul>")
 
 @router.post("/mesh-scan/", response_class=HTMLResponse)
 async def mesh_scan(mesh_params: MeshParams = Form(), current_user: User = Depends(get_current_user)):
@@ -157,11 +185,11 @@ async def mesh_scan(mesh_params: MeshParams = Form(), current_user: User = Depen
         mesh_path = f"{UPLOAD_DIR}/{current_user.username}/mesh/{mesh_params.scan_name}"
         dc.mesh_poisson(ply_path, mesh_path)
         return HTMLResponse(f"""
-            <p>Mesh Saved to {mesh_path}</p>
-            """) 
+            <div class="alert alert-ok" role="status"><p>Mesh saved to {escape(mesh_path)}</p></div>
+            """)
     except Exception as e:
         return HTMLResponse(f"""
-                    <p>Error Occured {e}</p>
+                    <div class="alert alert-bad" role="alert"><p>Could not mesh that scan. {escape(str(e))}</p></div>
                     """)
     
 @router.post("/remesh-scan/", response_class=HTMLResponse)
@@ -178,11 +206,11 @@ async def remesh_scan(mesh_params: MeshParams = Form(), current_user: User = Dep
         mesh_path = f"{UPLOAD_DIR}/{current_user.username}/mesh/{mesh_params.scan_name}"
         dc.mesh_poisson(ply_path, mesh_path)
         return HTMLResponse(f"""
-            <p>Mesh Updated to {mesh_path}</p>
-            """) 
+            <div class="alert alert-ok" role="status"><p>Mesh updated at {escape(mesh_path)}</p></div>
+            """)
     except Exception as e:
         return HTMLResponse(f"""
-                    <p>Error Occured {e}</p>
+                    <div class="alert alert-bad" role="alert"><p>Could not update that mesh. {escape(str(e))}</p></div>
                     """)
 
 @router.delete("/delete-scan/", response_class=HTMLResponse)
@@ -192,11 +220,11 @@ async def delete_scan(scan_name: str, current_user: User = Depends(get_current_u
         os.remove(scan_to_remove)
 
         return HTMLResponse(f"""
-            <p>Sucessfully deleted {scan_name} </p>
+            <div class="alert alert-ok" role="status"><p>Deleted {escape(scan_name)}.</p></div>
             """)
     except Exception as e:
         return HTMLResponse(f"""
-            <p> Error Occured {e} </p>
+            <div class="alert alert-bad" role="alert"><p>Could not delete that scan. {escape(str(e))}</p></div>
             """)
 
     
@@ -207,11 +235,11 @@ async def delete_mesh(mesh_name: str, current_user: User = Depends(get_current_u
         os.remove(mesh_to_remove)
 
         return HTMLResponse(f"""
-            <p>Sucessfully deleted {mesh_name} </p>
+            <div class="alert alert-ok" role="status"><p>Deleted {escape(mesh_name)}.</p></div>
             """)
     except Exception as e:
         return HTMLResponse(f"""
-            <p> Error Occured {e} </p>
+            <div class="alert alert-bad" role="alert"><p>Could not delete that mesh. {escape(str(e))}</p></div>
             """)
 
     

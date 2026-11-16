@@ -326,6 +326,50 @@
 
       .notice:empty { display: none; }
 
+      .upload-progress[hidden] { display: none; }
+
+      .upload-progress { display: flex; flex-direction: column; gap: 0.45rem; }
+
+      .upload-progress-track {
+        height: 0.45rem;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #1e293b;
+      }
+
+      .upload-progress-bar {
+        width: 0%;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--accent);
+        transition: width 0.15s linear;
+      }
+
+      .upload-progress-bar.is-unknown {
+        width: 35%;
+        animation: upload-slide 1.1s ease-in-out infinite;
+      }
+
+      .upload-progress-label {
+        margin: 0;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .btn:disabled {
+        opacity: 0.55;
+        cursor: progress;
+      }
+
+      @keyframes upload-slide {
+        from { transform: translateX(-130%); }
+        to { transform: translateX(320%); }
+      }
+
       .alert {
         border-radius: 14px;
         padding: 0.85rem 1rem;

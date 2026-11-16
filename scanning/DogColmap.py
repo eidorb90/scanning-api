@@ -87,6 +87,10 @@ class DogColmap:
             raise
 
     def reconstruct_dog(self):
+        print(pycolmap.Device.cuda)
+        if hasattr(pycolmap, "has_cuda"):
+            print("CUDA available:", pycolmap.has_cuda)
+
         self._sparse_dir.mkdir(parents=True, exist_ok=True)
         self._sparse_output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -97,11 +101,13 @@ class DogColmap:
         extraction_opts.sift.peak_threshold = self._peak_thresh
         extraction_opts.sift.estimate_affine_shape = self._estimate_shape
         extraction_opts.sift.domain_size_pooling = self._domain_pooling
+        extraction_opts.use_gpu = False
 
         pycolmap.extract_features(
             database_path,
             self._frames_dir,
             extraction_options=extraction_opts,
+            device=pycolmap.Device.cpu,
         )
 
         print("Running sequential matching...")
@@ -109,6 +115,7 @@ class DogColmap:
         pycolmap.match_sequential(
             database_path,
             pairing_options=pycolmap.SequentialPairingOptions(overlap=15),
+            device=pycolmap.Device.cpu,
         )
 
         with pycolmap.Database.open(database_path) as db:
@@ -117,7 +124,10 @@ class DogColmap:
 
             if num_matches == 0:
                 print("Sequential produced 0 matches, trying exhaustive...")
-                pycolmap.match_exhaustive(database_path)
+                pycolmap.match_exhaustive(
+                    database_path,
+                    device=pycolmap.Device.cpu,
+                )
                 print(f"After exhaustive: {db.num_matches()} matched pairs")
 
         maps = pycolmap.incremental_mapping(
@@ -217,6 +227,7 @@ class DogColmap:
         poisson_options.depth = self._depth
         poisson_options.point_weight = self._pw
         poisson_options.trim = self._trim
+        
 
         print(f"Running Poisson meshing on: {ready_ply}")
 

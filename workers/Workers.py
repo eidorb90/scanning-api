@@ -129,6 +129,7 @@ class ScanWorker(Worker):
             frames_dir=job.frames_path,
             sparse_dir=job.sparse_path,
             mesh_dir=job.mesh_path,
+            use_gpu=job.use_gpu,
         )
         dc.run()
         # self._clean_up(job)

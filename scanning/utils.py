@@ -1,6 +1,7 @@
 
 import cv2
 import math
+import socket
 
 def get_video_frames(video_path, nth):
     cap = cv2.VideoCapture(video_path)
@@ -13,3 +14,4 @@ def get_video_frames(video_path, nth):
     cap.release()
     
     return int(total_frames)
+

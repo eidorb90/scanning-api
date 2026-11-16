@@ -14,6 +14,7 @@ from .utils import get_video_frames
 from scanning.DogColmap import DogColmap
 import os
 from html import escape
+import requests
 
 
 UPLOAD_DIR = "uploaded_videos"
@@ -54,14 +55,24 @@ async def upload_video(current_user: User = Depends(get_current_user), file: Upl
 
 
 @router.post("/start-scan/")
-async def start_scan(scan_params: ScanParams = Form(), current_user: User = Depends(get_current_user), file_name: str = Form(...)):
+async def start_scan(scan_params: ScanParams = Form(), current_user: User = Depends(get_current_user), file_name: str = Form(...), use_gpu: bool = False):
     try:
+        gpu_supported = False
         user_name = current_user.username
 
         frames_path = f"{UPLOAD_DIR}/{user_name}/{file_name}/out/frames"
         sparse_path = f"{UPLOAD_DIR}/{user_name}/{file_name}/out"
         mesh_path = f"{UPLOAD_DIR}/{user_name}/mesh/"
         file_path = f"{UPLOAD_DIR}/{user_name}/{file_name}/{file_name}"
+
+        if use_gpu:
+            # Offload work to gpu server if it is up
+            if gpu_supported:
+                pass
+
+            else:
+                print("GPU not currently supported using cpu")
+                use_gpu = False
 
         frame_count = get_video_frames(file_path, scan_params.frame_interval)
         new_scan_job = ScanJob(
@@ -83,6 +94,7 @@ async def start_scan(scan_params: ScanParams = Form(), current_user: User = Depe
             sparse_path=sparse_path,
             mesh_path=mesh_path,
             frame_count=int(frame_count),
+            use_gpu=use_gpu,
         )
 
 

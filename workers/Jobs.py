@@ -22,3 +22,4 @@ class ScanJob(BaseModel):
     trim: float
     out_name: str
     frame_count: int
+    use_gpu: bool

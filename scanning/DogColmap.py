@@ -99,15 +99,17 @@ class DogColmap:
         extraction_opts = pycolmap.FeatureExtractionOptions()
         extraction_opts.sift.max_num_features = self._max_num_feats
         extraction_opts.sift.peak_threshold = self._peak_thresh
-        extraction_opts.sift.estimate_affine_shape = self._estimate_shape
-        extraction_opts.sift.domain_size_pooling = self._domain_pooling
-        extraction_opts.use_gpu = False
+        extraction_opts.sift.estimate_affine_shape = False
+        extraction_opts.sift.domain_size_pooling = False
+        # extraction_opts.sift.use_gpu = True
+        # extraction_opts.sift.gpu_index = "0"
+        extraction_opts.use_gpu = True
 
         pycolmap.extract_features(
             database_path,
             self._frames_dir,
             extraction_options=extraction_opts,
-            device=pycolmap.Device.cpu,
+            device=pycolmap.Device.cuda,
         )
 
         print("Running sequential matching...")
@@ -115,7 +117,7 @@ class DogColmap:
         pycolmap.match_sequential(
             database_path,
             pairing_options=pycolmap.SequentialPairingOptions(overlap=15),
-            device=pycolmap.Device.cpu,
+            device=pycolmap.Device.cuda,
         )
 
         with pycolmap.Database.open(database_path) as db:
@@ -126,7 +128,7 @@ class DogColmap:
                 print("Sequential produced 0 matches, trying exhaustive...")
                 pycolmap.match_exhaustive(
                     database_path,
-                    device=pycolmap.Device.cpu,
+                    device=pycolmap.Device.cuda,
                 )
                 print(f"After exhaustive: {db.num_matches()} matched pairs")
 
@@ -137,6 +139,7 @@ class DogColmap:
             options={
                 "min_num_matches": 15,
                 "multiple_models": False,
+                "ba_use_gpu": True,
             },
         )
 

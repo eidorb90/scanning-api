@@ -1585,17 +1585,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pycolmap-cuda"
-version = "3.13.0.dev2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "numpy" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b0/dc/5c325a6b1db0cdb5228c627961d0aa5d73a541cf0309d58c62e7c5c25078/pycolmap_cuda-3.13.0.dev2-cp313-cp313-manylinux_2_34_x86_64.whl", hash = "sha256:54e3a22f4e6621e60c9047406d339c36319f4b167a4022ab1069543198779f76", size = 61979126, upload-time = "2025-09-05T21:53:41.051Z" },
-]
-
-[[package]]
 name = "pycolmap-cuda12"
 version = "4.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2099,7 +2088,6 @@ dependencies = [
     { name = "open3d" },
     { name = "opencv-python" },
     { name = "passlib", extra = ["bcrypt"] },
-    { name = "pycolmap-cuda" },
     { name = "pycolmap-cuda12" },
     { name = "pymysql" },
     { name = "python-jose", extra = ["cryptography"] },
@@ -2115,7 +2103,6 @@ requires-dist = [
     { name = "open3d", specifier = ">=0.20.0" },
     { name = "opencv-python", specifier = ">=5.0.0.93" },
     { name = "passlib", extras = ["bcrypt"], specifier = ">=1.7.4" },
-    { name = "pycolmap-cuda", specifier = ">=3.13.0.dev2" },
     { name = "pycolmap-cuda12", specifier = ">=4.2.1" },
     { name = "pymysql", specifier = ">=1.2.3" },
     { name = "python-jose", extras = ["cryptography"], specifier = ">=3.5.0" },

@@ -30,6 +30,7 @@ class DogColmap:
         frames_dir="./vid/out",
         sparse_dir="./out_ply",
         mesh_dir="./out_mesh",
+        use_gpu=False
     ):
         self._video_path = video_path
         self._user_name = user_name
@@ -52,6 +53,8 @@ class DogColmap:
         self._frames_dir = Path(frames_dir)
         self._sparse_dir = Path(sparse_dir)
         self._mesh_dir = Path(mesh_dir)
+
+        self._use_gpu = use_gpu
 
         # Output locations
         self._sparse_output_dir = self._sparse_dir / "sparse"
@@ -87,10 +90,6 @@ class DogColmap:
             raise
 
     def reconstruct_dog(self):
-        print(pycolmap.Device.cuda)
-        if hasattr(pycolmap, "has_cuda"):
-            print("CUDA available:", pycolmap.has_cuda)
-
         self._sparse_dir.mkdir(parents=True, exist_ok=True)
         self._sparse_output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -99,17 +98,22 @@ class DogColmap:
         extraction_opts = pycolmap.FeatureExtractionOptions()
         extraction_opts.sift.max_num_features = self._max_num_feats
         extraction_opts.sift.peak_threshold = self._peak_thresh
-        extraction_opts.sift.estimate_affine_shape = False
-        extraction_opts.sift.domain_size_pooling = False
-        # extraction_opts.sift.use_gpu = True
-        # extraction_opts.sift.gpu_index = "0"
-        extraction_opts.use_gpu = True
+        extraction_opts.sift.estimate_affine_shape = self._estimate_shape
+        extraction_opts.sift.domain_size_pooling = self._domain_pooling
+        device = pycolmap.Device.cpu
+        
+        
+        if self._use_gpu:
+            extraction_opts.use_gpu = True
+            extraction_opts.sift.domain_size_pooling = False
+            extraction_opts.sift.estimate_affine_shape = False
+            device = pycolmap.Device.cuda
 
         pycolmap.extract_features(
             database_path,
             self._frames_dir,
             extraction_options=extraction_opts,
-            device=pycolmap.Device.cuda,
+            device=device,
         )
 
         print("Running sequential matching...")
@@ -117,7 +121,7 @@ class DogColmap:
         pycolmap.match_sequential(
             database_path,
             pairing_options=pycolmap.SequentialPairingOptions(overlap=15),
-            device=pycolmap.Device.cuda,
+            device=device,
         )
 
         with pycolmap.Database.open(database_path) as db:
@@ -128,7 +132,7 @@ class DogColmap:
                 print("Sequential produced 0 matches, trying exhaustive...")
                 pycolmap.match_exhaustive(
                     database_path,
-                    device=pycolmap.Device.cuda,
+                    device=device,
                 )
                 print(f"After exhaustive: {db.num_matches()} matched pairs")
 
@@ -139,7 +143,7 @@ class DogColmap:
             options={
                 "min_num_matches": 15,
                 "multiple_models": False,
-                "ba_use_gpu": True,
+                "ba_use_gpu": self._use_gpu,
             },
         )
 

@@ -88,7 +88,7 @@ async def view_scan(request: Request, scan_name: str, current_user: User = Depen
     return templates.TemplateResponse(
         request, 
         name="view-scan.html",
-        context={"request": request, "title": f"View - {scan_name}", "scan_name": scan_name, "scan_path": scan_path}
+        context={"request": request, "title": f"View - {scan_name}", "scan_name": scan_name, "scan_path": scan_path, "username": current_user.username}
     )
 
 @router.get("/view-mesh/", response_class=HTMLResponse)
@@ -97,6 +97,6 @@ async def view_mesh(request: Request, mesh_name: str, current_user: User = Depen
     return templates.TemplateResponse(
         request, 
         name="view-mesh.html",
-        context={"request": request, "title": f"View - {mesh_name}", "scan_name": mesh_name, "scan_path": scan_path}
+        context={"request": request, "title": f"View - {mesh_name}", "scan_name": mesh_name, "scan_path": scan_path, "username": current_user.username}
     )
 

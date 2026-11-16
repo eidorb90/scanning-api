@@ -14,7 +14,6 @@ dependencies = [
     "open3d>=0.20.0",
     "opencv-python>=5.0.0.93",
     "passlib[bcrypt]>=1.7.4",
-    "pycolmap-cuda>=3.13.0.dev2",
     "pycolmap-cuda12>=4.2.1",
     "pymysql>=1.2.3",
     "python-jose[cryptography]>=3.5.0",

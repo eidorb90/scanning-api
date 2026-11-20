@@ -2,6 +2,7 @@ from jose import JWTError, jwt
 from datetime import datetime, timedelta
 import bcrypt
 
+# TODO Update my secret key
 SECRET_KEY = "your_secret_key"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30

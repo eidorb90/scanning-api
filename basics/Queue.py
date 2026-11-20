@@ -82,7 +82,7 @@ class Queue:
 
 
 class ScanQueue(Queue):
-    def __init__(self, average_time_per_frame=1.5) -> None:
+    def __init__(self, average_time_per_frame=.43) -> None:
         self._average_time_per_frame = average_time_per_frame
         self._active = None
         super().__init__()
@@ -91,9 +91,15 @@ class ScanQueue(Queue):
         self._active = job
 
     def _job_minutes(self, job) -> int:
+        if not job.use_gpu:
+            self._average_time_per_frame = 1.5
+        else:
+            self._average_time_per_frame = .43
+
         return math.ceil(self._average_time_per_frame * job.frame_count / 60)
 
     def estimated_wait(self, position: int) -> int:
+
         if position < 1 or position > self._size:
             raise ValueError(f"position {position} is outside the queue")
         total = 0

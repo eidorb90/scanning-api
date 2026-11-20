@@ -14,7 +14,6 @@ from .utils import get_video_frames
 from scanning.DogColmap import DogColmap
 import os
 from html import escape
-import requests
 
 
 UPLOAD_DIR = "uploaded_videos"
@@ -33,9 +32,9 @@ async def upload_video(current_user: User = Depends(get_current_user), file: Upl
         print("ERROR UPLOADING FILE: File provided is not a valid video format.")
         return
 
-    file_path = os.path.join(f"{UPLOAD_DIR}/{username}/{file.filename}", file.filename)
+    file_path = os.path.join(f"{UPLOAD_DIR}/users/{username}/{file.filename}", file.filename)
 
-    os.makedirs(f"{UPLOAD_DIR}/{username}/{file.filename}")
+    os.makedirs(f"{UPLOAD_DIR}/users/{username}/{file.filename}")
     html_string = f"""
     <div class="alert alert-ok" role="status"><p>Uploaded {escape(file.filename)}.</p></div>
     """
@@ -55,24 +54,16 @@ async def upload_video(current_user: User = Depends(get_current_user), file: Upl
 
 
 @router.post("/start-scan/")
-async def start_scan(scan_params: ScanParams = Form(), current_user: User = Depends(get_current_user), file_name: str = Form(...), use_gpu: bool = False):
+async def start_scan(scan_params: ScanParams = Form(), current_user: User = Depends(get_current_user), file_name: str = Form(...)):
     try:
-        gpu_supported = False
         user_name = current_user.username
 
-        frames_path = f"{UPLOAD_DIR}/{user_name}/{file_name}/out/frames"
-        sparse_path = f"{UPLOAD_DIR}/{user_name}/{file_name}/out"
-        mesh_path = f"{UPLOAD_DIR}/{user_name}/mesh/"
-        file_path = f"{UPLOAD_DIR}/{user_name}/{file_name}/{file_name}"
-
-        if use_gpu:
-            # Offload work to gpu server if it is up
-            if gpu_supported:
-                pass
-
-            else:
-                print("GPU not currently supported using cpu")
-                use_gpu = False
+        base_dir = f"{UPLOAD_DIR}/users"
+        frames_path = f"{base_dir}/{user_name}/{file_name}/out/frames"
+        sparse_path = f"{base_dir}/{user_name}/{file_name}/out"
+        mesh_path = f"{base_dir}/{user_name}/mesh/"
+        file_path = f"{base_dir}/{user_name}/{file_name}/{file_name}"
+        use_gpu = scan_params.use_gpu
 
         frame_count = get_video_frames(file_path, scan_params.frame_interval)
         new_scan_job = ScanJob(
@@ -93,8 +84,9 @@ async def start_scan(scan_params: ScanParams = Form(), current_user: User = Depe
             frames_path=frames_path,
             sparse_path=sparse_path,
             mesh_path=mesh_path,
-            frame_count=int(frame_count),
+            frame_count=int(frame_count), # type: ignore
             use_gpu=use_gpu,
+            base_dir=base_dir,
         )
 
 
@@ -114,7 +106,7 @@ async def start_scan(scan_params: ScanParams = Form(), current_user: User = Depe
 @router.get("/download-scan/")
 async def download_scan(file_name: str, current_user: User = Depends(get_current_user)):
     user_name = current_user.username
-    ply_dir = (Path(UPLOAD_DIR) / user_name / "ply").resolve()
+    ply_dir = (Path(UPLOAD_DIR) / "users" / user_name / "ply").resolve()
     path = (ply_dir / f"{file_name}.ply").resolve()
     if ply_dir not in path.parents or not path.is_file():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scan not found")
@@ -124,7 +116,7 @@ async def download_scan(file_name: str, current_user: User = Depends(get_current
 @router.get("/get-scans/", response_class=HTMLResponse)
 async def get_scans(current_user: User = Depends(get_current_user)):
     user_name = current_user.username
-    user_scan_path = Path(f"{UPLOAD_DIR}/{user_name}/ply")
+    user_scan_path = Path(f"{UPLOAD_DIR}/users/{user_name}/ply")
     files = [f for f in user_scan_path.iterdir() if f.is_file()]
     if not files:
         return HTMLResponse("<p class=\"empty\">You don't have any scans yet</p>")
@@ -141,7 +133,7 @@ async def get_scans(current_user: User = Depends(get_current_user)):
 @router.get("/get-uploaded-videos/", response_class=HTMLResponse)
 async def get_uploaded_videos(current_user: User = Depends(get_current_user), options: bool=False):
     user_name = current_user.username
-    user_video_path = Path(f"{UPLOAD_DIR}/{user_name}")
+    user_video_path = Path(f"{UPLOAD_DIR}/users/{user_name}")
 
     video_dirs = [d for d in user_video_path.iterdir() if d.is_dir()]
 
@@ -169,7 +161,7 @@ async def get_uploaded_videos(current_user: User = Depends(get_current_user), op
 @router.get("/get-meshes/", response_class=HTMLResponse)
 async def get_meshes(current_user: User = Depends(get_current_user)):
     user_name = current_user.username
-    user_scan_path = Path(f"{UPLOAD_DIR}/{user_name}/mesh")
+    user_scan_path = Path(f"{UPLOAD_DIR}/users/{user_name}/mesh")
     files = [f for f in user_scan_path.iterdir() if f.is_file()]
     if not files:
         return HTMLResponse("<p class=\"empty\">You don't have any meshes yet</p>")
@@ -186,15 +178,15 @@ async def get_meshes(current_user: User = Depends(get_current_user)):
 @router.post("/mesh-scan/", response_class=HTMLResponse)
 async def mesh_scan(mesh_params: MeshParams = Form(), current_user: User = Depends(get_current_user)):
     try:
-        dc = DogColmap("", current_user.username, "", "", "", "", "", "", "")
+        dc = DogColmap("", current_user.username, "", "", "", "", "", "", "", UPLOAD_DIR)
         trim = mesh_params.trim
         pw = mesh_params.pw
         depth = mesh_params.depth
         dc.set_trim(trim)
         dc.set_pw(pw)
         dc.set_depth(depth)
-        ply_path = f"{UPLOAD_DIR}/{current_user.username}/ply/{mesh_params.scan_name}"
-        mesh_path = f"{UPLOAD_DIR}/{current_user.username}/mesh/{mesh_params.scan_name}"
+        ply_path = f"{UPLOAD_DIR}/users/{current_user.username}/ply/{mesh_params.scan_name}"
+        mesh_path = f"{UPLOAD_DIR}/users/{current_user.username}/mesh/{mesh_params.scan_name}"
         dc.mesh_poisson(ply_path, mesh_path)
         return HTMLResponse(f"""
             <div class="alert alert-ok" role="status"><p>Mesh saved to {escape(mesh_path)}</p></div>
@@ -207,15 +199,15 @@ async def mesh_scan(mesh_params: MeshParams = Form(), current_user: User = Depen
 @router.post("/remesh-scan/", response_class=HTMLResponse)
 async def remesh_scan(mesh_params: MeshParams = Form(), current_user: User = Depends(get_current_user)):
     try:
-        dc = DogColmap("", current_user.username, "", "", "", "", "", "", "")
+        dc = DogColmap("", current_user.username, "", "", "", "", "", "", "", UPLOAD_DIR)
         trim = mesh_params.trim
         pw = mesh_params.pw
         depth = mesh_params.depth
         dc.set_trim(trim)
         dc.set_pw(pw)
         dc.set_depth(depth)
-        ply_path = f"{UPLOAD_DIR}/{current_user.username}/ply/{mesh_params.scan_name}"
-        mesh_path = f"{UPLOAD_DIR}/{current_user.username}/mesh/{mesh_params.scan_name}"
+        ply_path = f"{UPLOAD_DIR}/users/{current_user.username}/ply/{mesh_params.scan_name}"
+        mesh_path = f"{UPLOAD_DIR}/users/{current_user.username}/mesh/{mesh_params.scan_name}"
         dc.mesh_poisson(ply_path, mesh_path)
         return HTMLResponse(f"""
             <div class="alert alert-ok" role="status"><p>Mesh updated at {escape(mesh_path)}</p></div>
@@ -228,7 +220,7 @@ async def remesh_scan(mesh_params: MeshParams = Form(), current_user: User = Dep
 @router.delete("/delete-scan/", response_class=HTMLResponse)
 async def delete_scan(scan_name: str, current_user: User = Depends(get_current_user)):
     try:
-        scan_to_remove =  f"{UPLOAD_DIR}/{current_user.username}/ply/{scan_name}"
+        scan_to_remove =  f"{UPLOAD_DIR}/users/{current_user.username}/ply/{scan_name}"
         os.remove(scan_to_remove)
 
         return HTMLResponse(f"""
@@ -243,7 +235,7 @@ async def delete_scan(scan_name: str, current_user: User = Depends(get_current_u
 @router.delete("/delete-mesh/", response_class=HTMLResponse)
 async def delete_mesh(mesh_name: str, current_user: User = Depends(get_current_user)):
     try:
-        mesh_to_remove = f"{UPLOAD_DIR}/{current_user.username}/mesh/{mesh_name}"
+        mesh_to_remove = f"{UPLOAD_DIR}/users/{current_user.username}/mesh/{mesh_name}"
         os.remove(mesh_to_remove)
 
         return HTMLResponse(f"""

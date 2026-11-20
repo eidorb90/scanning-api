@@ -23,3 +23,4 @@ class ScanJob(BaseModel):
     out_name: str
     frame_count: int
     use_gpu: bool
+    base_dir: str

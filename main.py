@@ -1,6 +1,7 @@
 import asyncio
 import os
 import shutil
+from auth.database import Base, engine
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import (FastAPI, File, Form, HTTPException, Request, UploadFile,
@@ -12,15 +13,19 @@ from fastapi.responses import RedirectResponse, HTMLResponse
 from scanning.DogColmap import DogColmap
 from basics.Queue import ScanQueue
 from workers.Workers import ScanJob, ScanWorker
+
+
+Base.metadata.create_all(bind=engine)
+
 from auth.routes import router as auth_router
 from users.routes import router as users_router
 from scanning.routes import router as scanning_router
+from clinics.routes import router as clinic_router
 from ui.routes import router as ui_router
 from users.models import User
 
 from auth.dependencies import get_current_user
 from scanning.routes import UPLOAD_DIR, SCANJOB_QUEUE
-
 # ========== Globals =============
 
 
@@ -40,20 +45,22 @@ async def lifespan(app: FastAPI):
 # =========== Setup ==============
 
 app = FastAPI(lifespan=lifespan)
+
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(users_router, prefix="/users", tags=["users"])
 app.include_router(scanning_router, prefix="/scanning", tags=["scanning"])
 app.include_router(ui_router, prefix="", tags=["ui"])
+app.include_router(clinic_router, prefix="/clinics", tags=["clinics"])
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount(
     "/view-scan/uploaded_videos",
-    StaticFiles(directory="uploaded_videos"),
+    StaticFiles(directory="uploaded_videos/users"),
     name="uploaded_videos"
 )
 app.mount(
     "/view-mesh/uploaded_videos",
-    StaticFiles(directory="uploaded_videos"),
+    StaticFiles(directory="uploaded_videos/users"),
     name="uploaded_videos"
 )
 

@@ -7,7 +7,6 @@ from .models import TokenData
 from users.models import User
 from .database import SessionLocal, engine, Base
 
-Base.metadata.create_all(bind=engine)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 

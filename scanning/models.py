@@ -1,8 +1,9 @@
 from pydantic import BaseModel
 from sqlalchemy import Boolean, Column, Integer, String, DateTime, Float, ForeignKey, func
-from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy.orm import relationship
 from auth.database import Base
 from users.models import TimestampMixin
+
 
 class ScanParams(BaseModel):
     mesh: bool
@@ -16,6 +17,7 @@ class ScanParams(BaseModel):
     pw: float
     trim: float
     out_name: str
+    use_gpu: bool
 
 
 class MeshParams(BaseModel):
@@ -25,7 +27,6 @@ class MeshParams(BaseModel):
     depth: int
 
 
-
 class Scan(Base, TimestampMixin):
     """Base scan table (shared data)."""
     __tablename__ = "scans"
@@ -33,9 +34,16 @@ class Scan(Base, TimestampMixin):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False, index=True)
 
-    # One-to-one with params
     params = relationship(
-        "ScanParams",
+        "ScanParam",
+        back_populates="scan",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+    # One-to-one with Mesh
+    mesh = relationship(
+        "Mesh",
         back_populates="scan",
         uselist=False,
         cascade="all, delete-orphan",
@@ -50,8 +58,7 @@ class ScanParam(Base, TimestampMixin):
 
     user_name = Column(String(50), index=True)
     file_name = Column(String(255), index=True)
-    file_path = Column(String(1000), unique=True)
-    mesh_path = Column(String(1000), unique=True)
+    file_path = Column(String(500), unique=True)
     max_distance = Column(Integer)
     frame_interval = Column(Integer)
     max_num_feats = Column(Integer)
@@ -59,13 +66,43 @@ class ScanParam(Base, TimestampMixin):
     estimate_shape = Column(Boolean, default=False)
     domain_pooling = Column(Boolean, default=False)
     depth = Column(Integer)
-    pw = Column(Float)
-    trim = Column(Float)
-    out_name = Column(String(100))
     frame_count = Column(Integer)
     use_gpu = Column(Boolean, default=False)
 
     scan = relationship("Scan", back_populates="params")
+
+
+class Mesh(Base, TimestampMixin):
+    __tablename__ = "meshes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False, index=True)
+
+    # Link back to Scan
+    scan_id = Column(Integer, ForeignKey("scans.id"), unique=True, nullable=False)
+    scan = relationship("Scan", back_populates="mesh")
+
+    params = relationship(
+        "MeshParam",
+        back_populates="mesh",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+
+class MeshParam(Base, TimestampMixin):
+    __tablename__ = "meshparams"
+
+    id = Column(Integer, primary_key=True, index=True)
+    mesh_id = Column(Integer, ForeignKey("meshes.id"), unique=True, nullable=False)
+
+    mesh_name = Column(String(255), index=True)
+    mesh_path = Column(String(500), unique=True)
+    pw = Column(Float)
+    trim = Column(Float)
+    out_name = Column(String(100))
+
+    mesh = relationship("Mesh", back_populates="params")
 
 
 class UserScan(Base, TimestampMixin):

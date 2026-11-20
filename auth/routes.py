@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response, Form
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from .dependencies import get_db, authenticate_user, get_user
+from users.schemas import UserCreate
 from .utils import create_access_token 
-from .schemas import UserCreate, UserResponse
 from users.models import User
 from .utils import get_password_hash
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -47,19 +47,21 @@ def login_for_access_token(response: Response, form_data: OAuth2PasswordRequestF
     
 @router.post("/signup/")
 def signup(user: Annotated[UserCreate, Form()], db: Session = Depends(get_db)):
-    db_user = get_user(db, username = user.username)
+    lower_username = user.username.lower()
+    db_user = get_user(db, username = lower_username)
     if db_user:
         raise HTTPException(status_code=400, detail="Username already registerd")
 
     hashed_password = get_password_hash(user.password)
-    db_user = User(username=user.username, hashed_password=hashed_password)
+    db_user = User(username=lower_username, first_name=user.first_name, last_name=user.last_name, phone=user.phone, email=user.email, hashed_password=hashed_password)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
 
-    user_dir = os.path.join("uploaded_videos", user.username)
+    user_dir = os.path.join("uploaded_videos", "users", lower_username)
     os.makedirs(user_dir, exist_ok=True)
     os.makedirs(f"{user_dir}/ply", exist_ok=True)
+    os.makedirs(f"{user_dir}/mesh", exist_ok=True)
 
     return HTMLResponse("""
         <div class="alert alert-ok" role="status">

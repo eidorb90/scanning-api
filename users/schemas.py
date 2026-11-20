@@ -2,45 +2,54 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
 
-# ---------------- User --------------
 
+# ---------------- User ----------------
 class UserBase(BaseModel):
     username: str
-    phone: Optional[str] = None
 
-class UserCreate(BaseModel):
+
+class UserCreate(UserBase):
+    username: str
+    first_name: str
+    last_name: str
+    phone: Optional[str] = None
+    email: Optional[str] = None
     password: str
+
+
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone: Optional[str] = None
+    is_active: Optional[bool] = None
+
 
 class User(UserBase):
     id: int
     is_active: bool
-    is_client: bool = False
     created_at: datetime
     updated_at: datetime
 
     class Config:
-        orm_mode = True
+        orm_mode = True 
 
-# ----------------- Client ------------
 
-class ClinicBase(BaseModel):
-    first_name: str
-    last_name: str
-    phone: Optional[str] = None
+# ---------------- Client ----------------
+class ClientBase(BaseModel):
     email: Optional[EmailStr] = None
     notes: Optional[str] = None
 
-class ClientCreate(ClinicBase):
+
+class ClientCreate(UserCreate, ClientBase):
+    """Creating a client requires both User fields + Client fields."""
     clinic_id: int
 
-class Client(ClinicBase):
-    id: int
+
+class ClientUpdate(UserUpdate, ClientBase):
+    clinic_id: Optional[int] = None
+
+
+class Client(User, ClientBase):
+    """Response model: a Client is a User + extra fields."""
     clinic_id: int
-    created_at: datetime
-    updated_at: datetime
-
-    class Config:
-        orm_mode = True
-
-
-  

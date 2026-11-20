@@ -21,6 +21,7 @@ class DogColmap:
         peak_thresh,
         estimate_shape,
         domain_pooling,
+        base_dir,
         depth=9,
         pw=2.0,
         trim=5.0,
@@ -30,7 +31,8 @@ class DogColmap:
         frames_dir="./vid/out",
         sparse_dir="./out_ply",
         mesh_dir="./out_mesh",
-        use_gpu=False
+        use_gpu=False,
+    
     ):
         self._video_path = video_path
         self._user_name = user_name
@@ -53,6 +55,7 @@ class DogColmap:
         self._frames_dir = Path(frames_dir)
         self._sparse_dir = Path(sparse_dir)
         self._mesh_dir = Path(mesh_dir)
+        self._base_dir = Path(base_dir)
 
         self._use_gpu = use_gpu
 
@@ -64,30 +67,47 @@ class DogColmap:
 
     def run(self):
         try:
-            # 1. Extract video frames
             extract(self._video_path, self._frame_interval)
 
-            # 2. Run COLMAP reconstruction
-            self.reconstruct_dog()
+            # Safe directory creation
+            self._ply_path.parent.mkdir(parents=True, exist_ok=True)
+            self._mesh_dir.mkdir(parents=True, exist_ok=True)
 
-            # 3. Filter and export sparse point cloud
+            self.reconstruct_dog()
             self.reconstruct_model()
 
             print(f"Sparse PLY saved: {self._ply_path}")
-
             self._move_ply()
 
-            # 4. Generate mesh if requested
             if self._mesh:
-                self.mesh_poisson(f"uploaded_videos/{self._user_name}/ply/{self._out_name}.ply", self._mesh_path)
+                ply_for_mesh = self._base_dir / self._user_name / "ply" / f"{self._out_name}.ply"
+                self.mesh_poisson(str(ply_for_mesh), self._mesh_path)
                 return self._mesh_path
-
 
             return self._ply_path
 
         except Exception as e:
             print(f"Reconstruction failed: {e}")
             raise
+
+
+    def _move_ply(self):
+        try:
+            source_path = (
+                self._base_dir / self._user_name / self._file_name / "out" / "sparse" / f"{self._out_name}.ply"
+            )
+            destination_dir = self._base_dir / self._user_name / "ply"
+            destination = destination_dir / f"{self._out_name}.ply"
+
+            destination_dir.mkdir(parents=True, exist_ok=True)
+
+            if destination.exists():
+                destination.unlink()
+
+            shutil.move(str(source_path), str(destination))
+            print(f"Moved to {destination}")
+        except Exception as e:
+            print(e)
 
     def reconstruct_dog(self):
         self._sparse_dir.mkdir(parents=True, exist_ok=True)
@@ -249,20 +269,6 @@ class DogColmap:
         os.remove(copy_path)
 
         return mesh_path
-
-    def _move_ply(self):
-        try:
-            source_path = f"uploaded_videos/{self._user_name}/{self._file_name}/out/sparse/{self._out_name}.ply" 
-
-            destination_dir = f"uploaded_videos/{self._user_name}/ply"
-            destination = os.path.join(destination_dir, f"{self._out_name}.ply")
-
-            if os.path.exists(destination):
-                os.remove(destination)
-            print(f"{destination}")
-            shutil.move(source_path, destination_dir)
-        except Exception as e:
-            print(e)
 
     def set_pw(self, pw):   
         self._pw = pw
